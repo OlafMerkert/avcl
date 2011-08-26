@@ -1,10 +1,27 @@
-(in-package :ol-user)
+(defpackage :avcl-models
+  (:use :cl :ol-utils)
+  (:export :persistable :persistent-id
+           :defclass/q
+
+           :taetigkeit :titel :bedarf :dozent :bereich :termin :bemerkung
+           :assistent :name
+           :wunsch :staerke
+           :zuweisung :score :fest))
+
+(in-package :avcl-models)
+
+;; TODO collection für die Vorhaltung der ganzen Listen
+(defclass collection ()
+  ())
+
+(defclass persistable ()
+  ((id :accessor persistent-id)))
 
 (defmacro! defclass/q (name slots
                       print-form)
   (let ((slot-names (mapcar #'first slots)))
    `(progn
-      (defclass ,name ()
+      (defclass ,name (persistable)
         ,(mapcar (lambda (slot)
                    (destructuring-bind (slot-name slot-type &key default) slot
                      (declare (ignorable slot-type))
@@ -31,7 +48,7 @@
 
 (defclass/q assistent
     ((name string)
-     (bedarf integer))
+     (bedarf integer :default 1))
   (name))
 
 (defclass/q wunsch
