@@ -10,15 +10,12 @@
 
 (defqclass form-base (q-widget)
   ()
-  (:signals new-data))
+  (:signals (new-data q-variant)))
 
 (defmethod initialize-instance :after ((form-base form-base) &key)
   (qt:new form-base))
 
 (defgeneric field-values (form))
-(defmethod close-form ((form-base form-base))
-  ;; todo
-  )
 
 ;; braucht aufrufe für close-form, form-value (setf-bar)
 ;; Button click hat closure mit alist der felder einträge aufzurufen
@@ -36,7 +33,7 @@
         (:slots ,@(mapcar (lambda (s b)
                             `(,s (lambda (,g!this)
                                    (labels ((close-form ()
-                                              (close-form% ,g!this)))
+                                              (q close ,g!this)))
                                     (aif
                                      (funcall ,(second b)
                                               (field-values ,g!this))
@@ -102,8 +99,7 @@
 
 (def-create-input from
   `(make-instance 'list-selector-input
-                  :list (list ,@(cdr type))
-                  :default ,default))
+                  :list (list ,@(cdr type))))
 (def-create-input from-list
   `(make-instance 'list-selector-input
                   :list ,(second type)))
@@ -118,7 +114,7 @@
 (defmacro! def-elem-input (name widget value-property)
   `(progn
      (defqclass ,name (,widget)
-       ((default :initarg default :initform nil)))
+       ((default :initarg :default :initform nil)))
      (defmethod initialize-instance :after ((,name ,name) &key)
        (qt:new ,name)
        (when (slot-value ,name 'default)
@@ -134,7 +130,7 @@
 ;; (def-elem-input boolean-input q-check-box checked)
 (PROGN
    (DEFQCLASS BOOLEAN-INPUT (Q-CHECK-BOX)
-              ((DEFAULT :INITARG DEFAULT :INITFORM NIL)))
+              ((DEFAULT :INITARG :DEFAULT :INITFORM NIL)))
    (DEFMETHOD INITIALIZE-INSTANCE :AFTER ((BOOLEAN-INPUT BOOLEAN-INPUT) &KEY)
      (QT:NEW BOOLEAN-INPUT)
      (WHEN (SLOT-VALUE BOOLEAN-INPUT 'DEFAULT)
@@ -145,7 +141,7 @@
      (SETF (Q CHECKED BOOLEAN-INPUT) value)))
 
 (defqclass list-selector-input (q-combo-box)
-  ((list :initarg list :initform nil)))
+  ((list :initarg :list :initform nil)))
 
 (defmethod initialize-instance :after ((list-selector-input list-selector-input) &key)
   (qt:new list-selector-input)

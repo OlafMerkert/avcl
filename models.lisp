@@ -1,5 +1,5 @@
 (defpackage :avcl-models
-  (:use :cl :ol-utils :avcl-forms)
+  (:use :cl :ol-utils :qt-utils :avcl-forms)
   (:export :persistable :persistent-id
            :defclass/q
            :taetigkeit :titel :bedarf :dozent :bereich :termin :bemerkung
@@ -35,11 +35,11 @@
           (with-slots ,slot-names ,g!object
             (declare (ignorable ,@slot-names))
             ,@(mapcar #`(princ ,a1 ,g!stream) print-form))))
-      ,(generate-create-form name slots)
+      ,(generate-create-form name slots slot-names)
       ,(generate-edit-form name slots slot-names))))
 
 (ew
-  (defun generate-create-form (name slots)
+  (defun generate-create-form (name slots slot-names)
    (let ((parameter-slots (filter (lambda (slot) (if (member :parameter slot) (first slot))) slots)))
      (with-gensyms!
        `(define-form ,(symb name '-create-form) ,(format nil "~:(~A~) anlegen" name)
@@ -47,10 +47,12 @@
             ,slots                      ; Felder
             ;; Buttons
             (("Speichern && Weiter" (lambda (,g!alist)
-                                      (apply #'make-instance ',name ,g!alist)))
+                                      #1=(make-instance ',name
+                                                        ,@(mapcan #`(,(keyw a1) (assoc1 ',a1 ,g!alist))
+                                                                  slot-names))))
              ("Speichern" (lambda (,g!alist)
                             (prog1
-                                (apply #'make-instance ',name ,g!alist)
+                                #1#
                               (close-form))))
              ("Abbrechen" (lambda (,g!alist)
                             (declare (ignorable ,g!alist))

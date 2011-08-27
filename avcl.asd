@@ -3,4 +3,5 @@
   :depends-on ("ol-utils" "qt-utils" "qt" "cl-prevalence")
   :components ((:module "ui"
                         :serial t
-                        :components ((:file "forms")))))
+                        :components ((:file "forms")))
+               (:file "models")))
