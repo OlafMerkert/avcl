@@ -1,5 +1,5 @@
 (defpackage :avcl-models
-  (:use :cl :ol-utils)
+  (:use :cl :ol-utils :avcl-forms)
   (:export :persistable :persistent-id
            :defclass/q
            :taetigkeit :titel :bedarf :dozent :bereich :termin :bemerkung
@@ -12,6 +12,8 @@
 ;; TODO collection für die Vorhaltung der ganzen Listen
 (defclass collection ()
   ())
+
+(defgeneric ->list (collection))
 
 (defclass persistable ()
   ((id :accessor persistent-id)))
@@ -36,46 +38,48 @@
       ,(generate-create-form name slots)
       ,(generate-edit-form name slots slot-names))))
 
-(defun generate-create-form (name slots)
-  (let ((parameter-slots (filter (lambda (slot) (if (member :parameter slot) (first slot))) slots)))
-   (with-gensyms!
-     `(define-form ,(symb name '-create-form) ,(format nil "~:(~A~) anlegen" name)
-          (,@parameter-slots)           ; Parameter
-        ,slots                          ; Felder
-        ;; Buttons
-        (("Speichern && Weiter" (lambda (,g!alist)
-                                  (apply #'make-instance ',name ,g!alist)))
-         ("Speichern" (lambda (,g!alist)
-                        (prog1
-                            (apply #'make-instance ',name ,g!alist)
-                          (close-form))))
-         ("Abbrechen" (lambda (,g!alist)
-                        (declare (ignorable ,g!alist))
-                        (close-form))))
-        ;; keine Initialisierung
-        ))))
+(ew
+  (defun generate-create-form (name slots)
+   (let ((parameter-slots (filter (lambda (slot) (if (member :parameter slot) (first slot))) slots)))
+     (with-gensyms!
+       `(define-form ,(symb name '-create-form) ,(format nil "~:(~A~) anlegen" name)
+            (,@parameter-slots)         ; Parameter
+            ,slots                      ; Felder
+            ;; Buttons
+            (("Speichern && Weiter" (lambda (,g!alist)
+                                      (apply #'make-instance ',name ,g!alist)))
+             ("Speichern" (lambda (,g!alist)
+                            (prog1
+                                (apply #'make-instance ',name ,g!alist)
+                              (close-form))))
+             ("Abbrechen" (lambda (,g!alist)
+                            (declare (ignorable ,g!alist))
+                            (close-form))))
+          ;; keine Initialisierung
+          ))))
 
-(defun generate-edit-form (name slots slot-names)
-  (with-gensyms!
-    `(define-form ,(symb name '-edit-form) ,(format nil "~:(~A~) bearbeiten" name)
-       (,name)                    ; Parameter
-         ,slots                         ; Felder
-         ;; Buttons
-         (("Speichern" (lambda (,g!alist)
-                         (let ((,g!object (assoc1 ',name ,g!alist)))
-                           ,@(mapcar (lambda (slot-name)
-                                       `(setf (slot-value ,g!object ',slot-name)
-                                              (assoc1 ',slot-name ,g!alist)))
-                                     slot-names)
-                           (close-form))))
-          ("Abbrechen" (lambda (,g!alist)
-                        (declare (ignorable ,g!alist))
-                        (close-form))))
-         ;; Initialisierung
-         ,@(mapcar (lambda (slot-name)
-                     `(setf (form-value ',slot-name)
-                            (slot-value ,name ',slot-name)))
-                   slot-names))))
+    (defun generate-edit-form (name slots slot-names)
+      (with-gensyms!
+        `(define-form ,(symb name '-edit-form) ,(format nil "~:(~A~) bearbeiten" name)
+             (,name)                    ; Parameter
+             ,slots                     ; Felder
+             ;; Buttons
+             (("Speichern" (lambda (,g!alist)
+                             (let ((,g!object (assoc1 ',name ,g!alist)))
+                               ,@(mapcar (lambda (slot-name)
+                                           `(setf (slot-value ,g!object ',slot-name)
+                                                  (assoc1 ',slot-name ,g!alist)))
+                                         slot-names)
+                               (close-form))))
+              ("Abbrechen" (lambda (,g!alist)
+                             (declare (ignorable ,g!alist))
+                             (close-form))))
+           ;; Initialisierung
+           (let ((,name (form-value ',name)))
+            ,@(mapcar (lambda (slot-name)
+                        `(setf (form-value ',slot-name)
+                               (slot-value ,name ',slot-name)))
+                      slot-names))))))
 
 (defclass/q taetigkeit
     ((titel string)
@@ -95,13 +99,13 @@
 
 (defclass/q wunsch
     ((assistent :parameter)
-     (taetigkeit (from-collection :taetigkeiten))
+     (taetigkeit (from-list :taetigkeiten))
      (staerke (from 1 2 3 4)))
   ((name assistent) " wuenscht " (titel taetigkeit) " [W" staerke "]"))
 
 (defclass/q zuweisung
-    ((assistent  (from-collection :assistenten))
-     (taetigkeit (from-collection :taetigkeiten))
+    ((assistent  (from-list (->list (collection :assistenten))))
+     (taetigkeit (from-list (->list (collection :taetigkeiten))))
      (score integer :default 0)
      (fest boolean  :default nil))
   ((name assistent) " uebernimmt " (titel taetigkeit) (if fest " [fest]" "")))
