@@ -23,9 +23,11 @@
    `(progn 
       (defqclass ,name (form-base)
         (,@(mapcar #`(,a1 :initarg ,(keyw a1)) parameters)
-           ,@field-names                ; input fields
+           ,@field-names                ; input fields -- these contains input WIDGETS
            ,@button-syms                ; buttons
            )
+        ;; TODO make sure gensyms are fine for slot-names (should be,
+        ;; as they are converted to strings)
         (:slots ,@(mapcar (lambda (s b)
                             `(,s (lambda (,g!this)
                                    (aif
@@ -54,7 +56,7 @@
             ,@button-syms)
           ;; create the form fields
           (qlayout ,g!form-area form
-            ,@(mapcan (lambda (f) (create-input (mkatom (second f)) name f))))
+            ,@(mapcan (lambda (f) (create-input (mkatom (second f)) name f)) fields))
           )
         
         
@@ -71,19 +73,16 @@
                 ,(progn ,@body))))))
 
 (def-create-input string
-  `(make-instance 'string-input :default default))
-
+  `(make-instance 'string-input :default ,default))
 (def-create-input integer
-  `(make-instance 'integer-input :default default))
-
+  `(make-instance 'integer-input :default ,default))
 (def-create-input boolean
-  `(make-instance 'boolena-input :default default))
+  `(make-instance 'boolean-input :default ,default))
 
 (def-create-input from
   `(make-instance 'list-selector-input
                   :list (list ,@(cdr type))
-                  :default default))
-
+                  :default ,default))
 (def-create-input from-collection
   `(make-instance 'collection-selector-input
                   :collection ,(second type)))
@@ -93,6 +92,39 @@
                   ) ; TODO
   )
 
+;; the various input types
+(defqclass elem-input ()
+  ())
+
+(defgeneric field-value (input))
+(defgeneric set-field-value (input value))
+(defsetf field-value set-field-value)
+
+(defmacro! def-elem-input (name widget value-property)
+  `(progn
+     (defqclass ,name (,widget elem-input)
+       ())
+     (defmethod field-value ((,name ,name))
+       (q ,value-property ,name))
+     (defmethod set-field-value ((,name ,name) ,g!value)
+       (setf (q ,value-property ,name) ,g!value))))
+
+(def-elem-input string-input q-line-edit text)
+(def-elem-input integer-input q-spin-box value)
+
+(defqclass boolean-input (q-check-box elem-input)
+  ())
+(defmethod field-value ((boolean-input boolean-input))
+  (q is-checked boolean-input))
+(defmethod set-field-value ((boolean-input boolean-input) value)
+  (q set-checked boolean-input value))
+
+
+(defmethod initialize-instance :after ((elem-input elem-input) &key default)
+  (qt:new elem-input)
+  (when default
+    (setf (field-value elem-input)
+          default)))
 
 ;; Beispiel für define-form Aufruf
 (DEFINE-FORM TAETIGKEIT-CREATE-FORM
