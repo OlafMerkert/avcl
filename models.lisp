@@ -2,7 +2,6 @@
   (:use :cl :ol-utils)
   (:export :persistable :persistent-id
            :defclass/q
-
            :taetigkeit :titel :bedarf :dozent :bereich :termin :bemerkung
            :assistent :name
            :wunsch :staerke
@@ -78,10 +77,6 @@
                             (slot-value ,name ',slot-name)))
                    slot-names))))
 
-;; braucht aufrufe für close-form, form-value (setf-bar)
-;; Button click hat closure mit alist der felder einträge aufzurufen
-(defmacro define-form (name title parameters fields buttons &body init))
-
 (defclass/q taetigkeit
     ((titel string)
      (bedarf integer :default 2)
@@ -108,5 +103,5 @@
     ((assistent  (from-collection :assistenten))
      (taetigkeit (from-collection :taetigkeiten))
      (score integer :default 0)
-     (fest boolean))
+     (fest boolean  :default nil))
   ((name assistent) " uebernimmt " (titel taetigkeit) (if fest " [fest]" "")))
