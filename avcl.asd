@@ -4,4 +4,6 @@
   :components ((:module "ui"
                         :serial t
                         :components ((:file "forms")))
-               (:file "models")))
+               (:file "storage")
+               (:file "models")
+               (:file "playground")))

@@ -1,5 +1,6 @@
 (defpackage :avcl-models
-  (:use :cl :ol-utils :qt-utils :avcl-forms)
+  (:use :cl :ol-utils :qt-utils
+        :avcl-forms :avcl-storage)
   (:export :persistable :persistent-id
            :defclass/q
            :taetigkeit :titel :bedarf :dozent :bereich :termin :bemerkung
@@ -8,12 +9,6 @@
            :zuweisung :score :fest))
 
 (in-package :avcl-models)
-
-;; TODO collection für die Vorhaltung der ganzen Listen
-(defclass collection ()
-  ())
-
-(defgeneric ->list (collection))
 
 (defclass persistable ()
   ((id :accessor persistent-id)))
