@@ -34,7 +34,7 @@
         (print-unreadable-object (,g!object ,g!stream :type t)
           (with-slots ,slot-names ,g!object
             (declare (ignorable ,@slot-names))
-            ,@(mapcar #`(princ ,a1 ,g!stream) print-form))))
+            (format ,g!stream ,@print-form))))
       ,(generate-create-form name slots slot-names)
       ,(generate-edit-form name slots slot-names))))
 
@@ -92,22 +92,37 @@
                     "Masterstudium"))
      (termin string)
      (bemerkung string))
-  (titel " : " dozent " [" bedarf "]"))
+  ("~A : ~A [~A]" titel dozent bedarf))
 
 (defclass/q assistent
     ((name string)
      (bedarf integer :default 1))
-  (name))
+  ("~A" name))
 
 (defclass/q wunsch
     ((assistent :parameter)
      (taetigkeit (from-list :taetigkeiten))
      (staerke (from 1 2 3 4)))
-  ((name assistent) " wuenscht " (titel taetigkeit) " [W" staerke "]"))
+  ("~A wuenscht ~A [W~A]" (name assistent) (titel taetigkeit) staerke))
 
 (defclass/q zuweisung
     ((assistent  (from-list (->list (collection :assistenten))))
      (taetigkeit (from-list (->list (collection :taetigkeiten))))
      (score integer :default 0)
      (fest boolean  :default nil))
-  ((name assistent) " uebernimmt " (titel taetigkeit) (if fest " [fest]" "")))
+  ("~A uebernimmt ~A~:[~; [fest]~]" (name assistent) (titel taetigkeit) fest))
+
+(defmacro! def-filter-method (class collection &optional (accessor class))
+  `(defmethod ,collection ((,class ,class))
+     (remove-if-not (lambda (,g!x)
+                      (eql ,g!x ,class))
+                    (-> (collection ,(keyw collection)))
+                    :key #',accessor)))
+
+(def-filter-method  assistent   wuensche)
+(def-filter-method  taetigkeit  wuensche)
+(def-filter-method  assistent   zuweisungen)
+(def-filter-method  taetigkeit  zuweisungen)
+
+
+
