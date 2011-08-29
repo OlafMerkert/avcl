@@ -1,7 +1,7 @@
 (defpackage :avcl-storage
   (:use :cl :ol-utils :cl-prevalence)
   (:export :*default-store*
-           :save-data
+           :load-data :save-data
            :collection
            :->list
            :add :del :map*))
@@ -13,9 +13,11 @@
 
 (defparameter *storage-dir* #P"~/.avcl/data/")
 
-(defparameter *default-store*
-  (make-prevalence-system *storage-dir*))
+(defparameter *default-store* nil)
 
+(defun load-data ()
+  (setf *default-store*
+        (make-prevalence-system *storage-dir*)))
 (defun save-data ()
   (snapshot *default-store*))
 
