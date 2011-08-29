@@ -18,11 +18,11 @@
     `(progn
        (defclass ,name (persistable)
          ,(mapcar (lambda (slot)
-                    (destructuring-bind (slot-name slot-type &key default) slot
+                    (destructuring-bind (slot-name slot-type &key (default nil default-p)) slot
                       (declare (ignorable slot-type))
                       `(,slot-name :initarg ,(keyw slot-name)
                                    :accessor ,slot-name
-                                   ,@(if default `(:initform ,default)))))
+                                   ,@(if default-p `(:initform ,default)))))
                   slots))
        (defmethod print-object ((,g!object ,name) ,g!stream)
          (print-unreadable-object (,g!object ,g!stream :type t)
