@@ -27,6 +27,16 @@
                :initform (make-array 100 :adjustable t :fill-pointer 0)
                :accessor data)))
 
+(defmethod print-object ((collection collection) stream)
+  (print-unreadable-object (collection stream :type t)
+    (princ "[" stream)
+    (loop for start = t then nil
+         for o across (data collection)
+         unless start
+         do (princ ", " stream)
+         do (print-object o stream))
+    (princ "]" stream)))
+
 (defgeneric ->list (collection))
 (defmethod ->list ((collection collection))
   (array->list (data collection)))
