@@ -21,46 +21,44 @@
 
 (defmacro! define-tree-model (name header &rest levels)
   "TODO"
-  (multiple-value-bind (descendors accessors) (splitn levels)
+  (multiple-value-bind (descendors accessors) (splitn levels 2)
     (let ((gdescendors (list->gensyms descendors))
           (gaccessors (mapcar #'list->gensyms accessors)))
-     `(let (,@(mapcar #'list gdescendors descendors)
-            ,@(mapcar #'list (flatten1 gaccessors) (flatten1 accessors)))
-        (defqclass ,name (custom-tree-model)
-          ())
+      `(let (,@(mapcar #'list gdescendors descendors)
+             ,@(mapcar #'list (flatten1 gaccessors) (flatten1 accessors)))
+         (defqclass ,name (custom-tree-model)
+           ())
 
-        (defmethod initialize-instance :after ((model ,name) &key)
-          ;; create the header
-          ,@(mapcar (lambda (i h)
-                      `(q set-horizontal-header-item model ,i
-                          (make-qinstance 'standard-item ,h)))
-                    (lrange header) header))
-       
-        (defmethod fetch ((model ,name) &key (root nil root-supplied-p))
-          (clear model)
-          (when root-supplied-p
-            (setf (root-object model)
-                  root))
-          ;; put the standard-item models in there
-          ,(labels ((add-items (qitem item descendors accessors)
-                               (when descendors
-                                 (with-gensyms! 
-                                   `(dolist (,g!r (funcall ,(first descendors) ,item))
-                                      (let (,g!qr)
-                                        ,@(create-row qitem g!qr g!r (first accessors))
-                                        ,(add-items g!qr g!r (rest descendors) (rest accessors)))))))
-                    (create-row (qroot qitem item accessors)
-                                (with-gensyms!
-                                  `((setf ,qitem (make-qinstance 'standard-item
-                                                                 (format nil "~A"
-                                                                         (funcall ,(first accessors) ,item))))
-                                    (let ((,g!list (make-qinstance 'q-list<q-standard-item>)))
-                                      ,@(mapcar #`(q append ,g!list
-                                                     (make-qinstance 'standard-item
-                                                                     (format nil "~A" (funcall ,a1 ,item))))
-                                                (rest accessors))
-                                      (q append-row ,qroot ,g!list))))))
-                   (add-items `(q invisible-root-item model)
-                              `(root-object model)
-                              gdescendors
-                              gaccessors)))))))
+         (defmethod fetch ((model ,name) &key (root nil root-supplied-p))
+           (clear model)
+           (when root-supplied-p
+             (setf (root-object model)
+                   root))
+           ;; create the header
+           ,@(mapcar (lambda (i h)
+                       `(q set-horizontal-header-item model ,i
+                           (make-qinstance 'standard-item ,h)))
+                     (lrange header) header)
+           ;; put the standard-item models in there
+           ,(labels
+             ((add-items (qitem item descendors accessors)
+                         (when descendors
+                           (with-gensyms! 
+                             `(dolist (,g!r (funcall ,(first descendors) ,item))
+                                (let (,g!qr)
+                                  ,@(create-row qitem g!qr g!r (first accessors))
+                                  ,(add-items g!qr g!r (rest descendors) (rest accessors)))))))
+              (create-row (qroot qitem item accessors)
+                          (with-gensyms!
+                            `((setf ,qitem (make-qinstance 'standard-item
+                                                           (format nil "~A"
+                                                                   (funcall ,(first accessors) ,item))))
+                              (q append-row ,qroot
+                                 (list ,qitem
+                                       ,@(mapcar #`(make-qinstance 'standard-item
+                                                                   (format nil "~A" (funcall ,a1 ,item)))
+                                                 (rest accessors))))))))
+             (add-items `(q invisible-root-item model)
+                        `(root-object model)
+                        gdescendors
+                        gaccessors)))))))
