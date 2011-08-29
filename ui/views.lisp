@@ -1,66 +1,66 @@
 (defpackage :avcl-views
   (:use :cl :ol-utils :qt-utils :qt)
-  (:export))
+  (:export :define-tree-model
+           :clear :fetch))
 
 (in-package :avcl-views)
 
-(defqclass custom-tree-model (q-abstract-item-model)
-  ((header :accessor header
-           :initarg  :header
-           :initform nil)
-   (tree :accessor tree
-         :initarg  :tree
-         :initform nil))
-  (:override row-count
-             column-count
-             parent
-             index
-             data
-             flags
-             header-data))
-
-(defmethod create-index ((self custom-tree-model) row column &optional pointer)
-  (q create-index self row column pointer))
-
-(defmethod create-invalid-index (self)
-  (make-qinstance 'model-index))
-
-#|(defmethod create-invalid-index ((self custom-tree-model))
-  (create-invalid-index t))|#
+(defqclass custom-tree-model (q-standard-item-model)
+  ((root-object :initarg :root :initform nil
+                :accessor root-object)))
 
 (defmethod initialize-instance :after ((custom-tree-model custom-tree-model) &key)
   (qt:new custom-tree-model))
 
-(defmethod row-count ((self custom-tree-model) &optional parent)
-  (if (q is-valid parent)
-      (let ((node (q internal-pointer parent)))
-        (if node 1 0))
-      (if (tree self) 1 0)))
+(defmethod clear ((custom-tree-model custom-tree-model))
+  (q clear custom-tree-model))
 
-(defmethod column-count ((self custom-tree-model) &optional parent)
-  1)
+(defmethod fetch ((custom-tree-model custom-tree-model) &key root)
+  (declare (ignore root))
+  (clear custom-tree-model))
 
-(defmethod parent ((self custom-tree-model) child))
+(defmacro! define-tree-model (name header &rest levels)
+  "TODO"
+  (multiple-value-bind (descendors accessors) (splitn levels)
+    (let ((gdescendors (list->gensyms descendors))
+          (gaccessors (mapcar #'list->gensyms accessors)))
+     `(let (,@(mapcar #'list gdescendors descendors)
+            ,@(mapcar #'list (flatten1 gaccessors) (flatten1 accessors)))
+        (defqclass ,name (custom-tree-model)
+          ())
 
-(defmethod index ((self custom-tree-model) row column &optional parent)
-  (if (q is-valid parent)
-      (let ((node (q internal-pointer parent)))
-        (create-index self row column )
-        )))
-
-(defmethod data ((self custom-tree-model) index &optional role)
-  (when (and (or (null role) (eql role 0))    ; DisplayRole
-           (q is-valid index))
-    
-      ))
-
-(defmethod flags ((self custom-tree-model) index)
-  (if (q is-valid index)
-      (+ 1                              ; Selectable
-         32)                            ; Enabled
-      0))
-
-(defmethod header-data ((self custom-tree-model) section orientation &optional role)
-  (when (and (or (null role) (eql role 0)) ; DisplayRole
-             (eql orientation 1))
-    (nth section (header self))))
+        (defmethod initialize-instance :after ((model ,name) &key)
+          ;; create the header
+          ,@(mapcar (lambda (i h)
+                      `(q set-horizontal-header-item model ,i
+                          (make-qinstance 'standard-item ,h)))
+                    (lrange header) header))
+       
+        (defmethod fetch ((model ,name) &key (root nil root-supplied-p))
+          (clear model)
+          (when root-supplied-p
+            (setf (root-object model)
+                  root))
+          ;; put the standard-item models in there
+          ,(labels ((add-items (qitem item descendors accessors)
+                               (when descendors
+                                 (with-gensyms! 
+                                   `(dolist (,g!r (funcall ,(first descendors) ,item))
+                                      (let (,g!qr)
+                                        ,@(create-row qitem g!qr g!r (first accessors))
+                                        ,(add-items g!qr g!r (rest descendors) (rest accessors)))))))
+                    (create-row (qroot qitem item accessors)
+                                (with-gensyms!
+                                  `((setf ,qitem (make-qinstance 'standard-item
+                                                                 (format nil "~A"
+                                                                         (funcall ,(first accessors) ,item))))
+                                    (let ((,g!list (make-qinstance 'q-list<q-standard-item>)))
+                                      ,@(mapcar #`(q append ,g!list
+                                                     (make-qinstance 'standard-item
+                                                                     (format nil "~A" (funcall ,a1 ,item))))
+                                                (rest accessors))
+                                      (q append-row ,qroot ,g!list))))))
+                   (add-items `(q invisible-root-item model)
+                              `(root-object model)
+                              gdescendors
+                              gaccessors)))))))
