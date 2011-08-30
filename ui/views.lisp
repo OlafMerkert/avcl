@@ -1,10 +1,19 @@
 (defpackage :avcl-views
   (:use :cl :ol-utils :qt-utils :qt)
   (:export :define-tree-model
-           :clear :fetch))
+           :clear :fetch
+           :custom-tree-model
+           :custom-tree-view
+           :show
+           :empty))
 
 (in-package :avcl-views)
 
+(defun empty (x)
+  (declare (ignore x))
+  "")
+
+;;; the model part
 (defqclass custom-tree-model (q-standard-item-model)
   ((root-object :initarg :root :initform nil
                 :accessor root-object)))
@@ -62,3 +71,26 @@
                         `(root-object model)
                         gdescendors
                         gaccessors)))))))
+;;; the view part
+(defqclass custom-tree-view (q-tree-view)
+  ((expand-p :accessor expand-p
+             :initarg  :expand
+             :initform t)))
+
+(defmethod initialize-instance :after ((custom-tree-view custom-tree-view) &key model)
+  (qt:new custom-tree-view)
+  (setf (q model custom-tree-view) model)
+  (fetch model)
+  (expand custom-tree-view))
+
+(defmethod show ((custom-tree-view custom-tree-view))
+  (q show custom-tree-view))
+
+
+(defgeneric expand (view &key expand))
+
+(defmethod expand ((custom-tree-view custom-tree-view) &key (expand t supplied-p))
+  (if (if supplied-p expand (expand-p custom-tree-view))
+      (q expand-all custom-tree-view)
+      (q collapse-all custom-tree-view)))
+

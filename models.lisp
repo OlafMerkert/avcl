@@ -6,7 +6,9 @@
            :taetigkeit :titel :bedarf :dozent :bereich :termin :bemerkung
            :assistent :name
            :wunsch :staerke
-           :zuweisung :score :fest))
+           :zuweisung :score :fest
+           :wuensche
+           :zuweisungen))
 
 (in-package :avcl-models)
 
@@ -101,7 +103,7 @@
 
 (defclass/q wunsch
     ((assistent :parameter)
-     (taetigkeit (from-list :taetigkeiten))
+     (taetigkeit (from-list (->list (collection :taetigkeiten))))
      (staerke (from 1 2 3 4)))
   ("~A wuenscht ~A [W~A]" (name assistent) (titel taetigkeit) staerke))
 
@@ -132,5 +134,3 @@
     (setf (q model view) model)
     (fetch model)
     (q show view)))
-
-
