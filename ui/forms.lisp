@@ -20,12 +20,13 @@
 ;; braucht aufrufe für close-form, form-value (setf-bar)
 ;; Button click hat closure mit alist der felder einträge aufzurufen
 (defmacro! define-form (name title parameters fields buttons &body init)
-  (let ((button-syms (list->gensyms buttons))
-        (field-names (mapcar #'first fields)))
+  (let* ((button-syms     (list->gensyms buttons))
+        (field-names      (mapcar #'first fields))
+        (effective-fields (set-difference field-names parameters)))
    `(progn 
       (defqclass ,name (form-base)
         (,@(mapcar #`(,a1 :initarg ,(keyw a1)) parameters)
-           ,@(set-difference field-names parameters) ; input fields -- these contains input WIDGETS
+           ,@effective-fields ; input fields -- these contains input WIDGETS
            ,@button-syms                ; buttons
            )
         ;; TODO make sure gensyms are fine for slot-names (should be,
@@ -33,7 +34,9 @@
         (:slots ,@(mapcar (lambda (s b)
                             `(,s (lambda (,g!this)
                                    (labels ((close-form ()
-                                              (q close ,g!this)))
+                                              (q close ,g!this))
+                                            (clear-form ()
+                                              (clear-values ,g!this)))
                                     (aif
                                      (funcall ,(second b)
                                               (field-values ,g!this))
@@ -76,8 +79,11 @@
         (list ,@(mapcar #`(cons ',a1 (slot-value ,name ',a1))
                         parameters) ; first put the parameters into the alist
               ,@(mapcar #`(cons ',a1 (field-value (slot-value ,name ',a1)))
-                        (set-difference field-names parameters)) ; then the field values
-              )))))
+                        effective-fields) ; then the field values
+              ))
+      (defmethod clear-values ((,name ,name))
+        ,@(mapcar #`(clear-field-value (slot-value ,name ',a1))
+                  effective-fields)))))
 
 (defgeneric create-input (type class-name options))
 
@@ -110,35 +116,33 @@
 (defgeneric field-value (input))
 (defgeneric set-field-value (input value))
 (defsetf field-value set-field-value)
+(defgeneric clear-field-value (input))
 
-(defmacro! def-elem-input (name widget value-property)
+(defsymconstant +no-default+)
+
+(defmacro! def-elem-input (name widget value-property
+                                &key boolean-property)
   `(progn
      (defqclass ,name (,widget)
-       ((default :initarg :default :initform nil)))
+       ((default :initarg :default :initform +no-default+)))
      (defmethod initialize-instance :after ((,name ,name) &key)
        (qt:new ,name)
-       (when (slot-value ,name 'default)
-         (setf (field-value ,name)
-               (slot-value ,name 'default))))
+       (clear-field-value ,name))
      (defmethod field-value ((,name ,name))
-       (q ,value-property ,name))
+       (q ,(if boolean-property
+               (symb 'is- value-property)
+               value-property) ,name))
      (defmethod set-field-value ((,name ,name) ,g!value)
-       (setf (q ,value-property ,name) ,g!value))))
+       (setf (q ,value-property ,name) ,g!value))
+     (defmethod clear-field-value ((,name ,name))
+       (unless (eq (slot-value ,name 'default) +no-default+)
+         (setf (field-value ,name)
+               (slot-value ,name 'default))))))
 
 (def-elem-input string-input q-line-edit text)
 (def-elem-input integer-input q-spin-box value)
-;; (def-elem-input boolean-input q-check-box checked)
-(PROGN
-   (DEFQCLASS BOOLEAN-INPUT (Q-CHECK-BOX)
-              ((DEFAULT :INITARG :DEFAULT :INITFORM NIL)))
-   (DEFMETHOD INITIALIZE-INSTANCE :AFTER ((BOOLEAN-INPUT BOOLEAN-INPUT) &KEY)
-     (QT:NEW BOOLEAN-INPUT)
-     (WHEN (SLOT-VALUE BOOLEAN-INPUT 'DEFAULT)
-       (SETF (FIELD-VALUE BOOLEAN-INPUT) (SLOT-VALUE BOOLEAN-INPUT 'DEFAULT))))
-   (defmethod field-value ((boolean-input boolean-input))
-     (q is-checked boolean-input))
-   (DEFMETHOD SET-FIELD-VALUE ((BOOLEAN-INPUT BOOLEAN-INPUT) value)
-     (SETF (Q CHECKED BOOLEAN-INPUT) value)))
+(def-elem-input boolean-input q-check-box checked :boolean-property t)
+
 
 (defqclass list-selector-input (q-combo-box)
   ((list :initarg :list :initform nil)))
@@ -160,6 +164,9 @@
   (let ((index (or (position value (slot-value list-selector-input 'list))
                    -1)))
     (setf (q current-index list-selector-input) index)))
+
+(defmethod clear-field-value ((list-selector-input list-selector-input))
+  (setf (q current-index list-selector-input) -1))
 
 
 ;; ;; Beispiel für define-form Aufruf
