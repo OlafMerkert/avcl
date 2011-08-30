@@ -5,6 +5,18 @@
 
 (in-package :avcl-assign)
 
+(defun staerke->score (x)
+  x)
+
+(defmethod zuweisen ((wunsch wunsch))
+  (add (make-instance 'zuweisung :wunsch wunsch
+                      :score (staerke->score (staerke wunsch)))
+       (collection :zuweisungen)))
+
+(defmethod zuruecknehmen ((wunsch wunsch))
+  (let ((zuw (zuweisungen wunsch)))
+    (del (first zuw) (collection :zuweisungen))))
+
 ;;; Versuche ausgehend von Assistenten zuzuweisen
 (define-tree-model assign-by-assistent-model
     ("Name" "Wunsch" "Bedarf")
@@ -18,14 +30,8 @@
   (multiple-value-bind (widget view model)
       (model-action-view
        (model (make-instance 'assign-by-assistent-model))
-       ("Zuweisen" (lambda (item)
-                     (format t "~A~%" item)
-                     ; todo
-                     ))
-       ("Zuruecknehmen" (lambda (item)
-                          (format t "~A~%" item)
-                          ; todo
-                          )))
+       ("Zuweisen" #'zuweisen)
+       ("Zuruecknehmen" #'zuruecknehmen))
     (q show widget)))
 
 ;;; ausgehend von Vorlesungen
@@ -42,12 +48,6 @@
   (multiple-value-bind (widget view model)
       (model-action-view
        (model (make-instance 'assign-by-taetigkeit-model))
-       ("Zuweisen" (lambda (item)
-                     (format t "~A~%" item)
-                                        ; todo
-                     ))
-       ("Zuruecknehmen" (lambda (item)
-                          (format t "~A~%" item)
-                                        ; todo
-                          )))
+       ("Zuweisen" #'zuweisen)
+       ("Zuruecknehmen" #'zuruecknehmen))
     (q show widget)))

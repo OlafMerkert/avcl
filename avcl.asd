@@ -7,4 +7,6 @@
                                      (:file "views")))
                (:file "storage")
                (:file "models")
+               (:file "entry")
+               (:file "assign")
                (:file "playground")))

@@ -114,11 +114,12 @@
   ("~A wuenscht ~A [W~A]" (name assistent) (titel taetigkeit) staerke))
 
 (defclass/q zuweisung
-    ((assistent  (from-list (->list (collection :assistenten))))
-     (taetigkeit (from-list (->list (collection :taetigkeiten))))
+    ((wunsch     (from-list (->list (collection :wuensche))))
+     #|(assistent  (from-list (->list (collection :assistenten))))|#
+     #|(taetigkeit (from-list (->list (collection :taetigkeiten))))|#
      (score integer :default 0)
      (fest boolean  :default nil))
-  ("~A uebernimmt ~A~:[~; [fest]~]" (name assistent) (titel taetigkeit) fest))
+  ("~A uebernimmt ~A~:[~; [fest]~]" (name (assistent wunsch)) (titel (taetigkeit wunsch)) fest))
 
 (defmacro! def-filter-method (class collection &optional (accessor class))
   `(defmethod ,collection ((,class ,class))
@@ -129,8 +130,8 @@
 
 (def-filter-method  assistent   wuensche)
 (def-filter-method  taetigkeit  wuensche)
-(def-filter-method  assistent   zuweisungen)
-(def-filter-method  taetigkeit  zuweisungen)
+(def-filter-method  wunsch      zuweisungen)
+
 
 (defmacro define-equals-from-slots (class &rest slots)
   `(defmethod equals ((a ,class) (b ,class))
