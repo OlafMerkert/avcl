@@ -19,12 +19,19 @@
 
 ;;; Versuche ausgehend von Assistenten zuzuweisen
 (define-tree-model assign-by-assistent-model
-    ("Name" "Wunsch" "Bedarf")
+    ("Name" "Wunsch" "Zugewiesen" "Bedarf")
   (ilambda (x)
     (->list (collection :assistenten)))
-  (#'name #'empty #'bedarf)
+  (#'name #'empty (lambda (x)
+                    (loop for z in (->list (collection :zuweisungen))
+                         if (eql (assistent (wunsch z)) x)
+                         sum 1))
+          #'bedarf)
   #'wuensche
-  ((compose #'titel #'taetigkeit) (lambda (x) (format nil "W~A" (staerke x))) (compose #'bedarf #'taetigkeit)))
+  ((compose #'titel #'taetigkeit) (lambda (x) (format nil "W~A" (staerke x)))
+   (lambda (x)
+     (length (zuweisungen x)))
+   (compose #'bedarf #'taetigkeit)))
 
 (defun assign-by-assistent ()
   (multiple-value-bind (widget view model)
