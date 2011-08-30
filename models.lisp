@@ -12,6 +12,10 @@
 
 (in-package :avcl-models)
 
+(defgeneric equals (a b))
+(defmethod equals (a b)
+  (equal a b))
+
 (defclass persistable ()
   ((id :accessor persistent-id)))
 
@@ -127,6 +131,20 @@
 (def-filter-method  taetigkeit  wuensche)
 (def-filter-method  assistent   zuweisungen)
 (def-filter-method  taetigkeit  zuweisungen)
+
+(defmacro define-equals-from-slots (class &rest slots)
+  `(defmethod equals ((a ,class) (b ,class))
+     (and ,@(mapcar #`(equals (slot-value a ',a1)
+                              (slot-value b ',a1))
+                    slots))))
+
+;;; comparison for use with collection
+(define-equals-from-slots taetigkeit  titel dozent)
+(define-equals-from-slots assistent  name)
+(define-equals-from-slots wunsch  assistent taetigkeit)
+
+(defmethod equals ((a zuweisung) (b zuweisung))
+  (eql a b))
 
 (defun show-list-model (model-name collection)
   (let ((model (make-instance model-name
