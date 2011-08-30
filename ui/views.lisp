@@ -2,10 +2,12 @@
   (:use :cl :ol-utils :qt-utils :qt)
   (:export :define-tree-model
            :clear :fetch
+           :create-item :item->object
            :custom-tree-model
            :custom-tree-view
            :show
-           :empty))
+           :empty
+           :model-action-view))
 
 (in-package :avcl-views)
 
@@ -16,17 +18,32 @@
 ;;; the model part
 (defqclass custom-tree-model (q-standard-item-model)
   ((root-object :initarg :root :initform nil
-                :accessor root-object)))
+                :accessor root-object)
+   ;; this hash table is used for mapping items to objects
+   (item-table :initform (make-hash-table)
+               :reader table)))
 
 (defmethod initialize-instance :after ((custom-tree-model custom-tree-model) &key)
   (qt:new custom-tree-model))
 
 (defmethod clear ((custom-tree-model custom-tree-model))
-  (q clear custom-tree-model))
+  (q clear custom-tree-model)
+  (clrhash (table custom-tree-model)))
 
 (defmethod fetch ((custom-tree-model custom-tree-model) &key root)
   (declare (ignore root))
   (clear custom-tree-model))
+
+(defmethod create-item ((custom-tree-model custom-tree-model) content &optional (object nil supplied-p))
+  (let ((item (make-qinstance 'standard-item
+                              (format nil "~A" content))))
+    (when supplied-p
+      (setf (gethash item (table custom-tree-model))
+            object))
+    item))
+
+(defmethod item->object ((custom-tree-model custom-tree-model) item)
+  (gethash item (table custom-tree-model)))
 
 (defmacro! define-tree-model (name header &rest levels)
   "TODO"
@@ -59,13 +76,13 @@
                                   ,(add-items g!qr g!r (rest descendors) (rest accessors)))))))
               (create-row (qroot qitem item accessors)
                           (with-gensyms!
-                            `((setf ,qitem (make-qinstance 'standard-item
-                                                           (format nil "~A"
-                                                                   (funcall ,(first accessors) ,item))))
+                            `((setf ,qitem (create-item model
+                                                        (funcall ,(first accessors) ,item)
+                                                        ,item))
                               (q append-row ,qroot
                                  (list ,qitem
-                                       ,@(mapcar #`(make-qinstance 'standard-item
-                                                                   (format nil "~A" (funcall ,a1 ,item)))
+                                       ,@(mapcar #`(create-item model 
+                                                                (funcall ,a1 ,item))
                                                  (rest accessors))))))))
              (add-items `(q invisible-root-item model)
                         `(root-object model)
@@ -94,3 +111,38 @@
       (q expand-all custom-tree-view)
       (q collapse-all custom-tree-view)))
 
+(defmethod get-selected ((custom-tree-view custom-tree-view))
+  (let* ((model (q model custom-tree-view))
+         (index (q current-index (q selection-model custom-tree-view)))
+         (item  (q item-from-index model index)))
+    (item->object model item)))
+
+;;; Define a view with actions -- that is, a number of buttons at the top
+
+(defqclass slotter (q-object)
+  ((slot-fun :initarg :fun))
+  (:slots (call (lambda (this) (funcall (slot-value this 'slot-fun))))))
+
+(defmethod initialize-instance :after ((slotter slotter) &key)
+  (qt:new slotter))
+
+(defmacro! model-action-view ((var model) &rest buttons)
+  (let ((button-syms (list->gensyms :button buttons))
+        (slot-syms   (list->gensyms :slot   buttons)))
+    `(let* ((,var ,model) ; model
+            (,g!view (make-instance 'custom-tree-view :model ,var))
+            (,g!widget (make-qinstance 'widget))
+            (,g!button-box (make-qinstance 'widget)) ; container for buttons
+            ,@(mapcar #2`(,a1 (make-qinstance 'push-button ,(first a2)))
+                      button-syms buttons)
+            ,@(mapcar #2`(,a1 (make-instance 'slotter
+                                             :fun (lambda ()
+                                                    (funcall ,(second a2)
+                                                             (get-selected ,g!view)))))
+                      slot-syms buttons))
+       ;; lay it out
+       (qlayout ,g!button-box h-box ,@button-syms :stretch)
+       (qlayout ,g!widget v-box ,g!button-box ,g!view)
+       ;; connect the signals
+       ,@(mapcar #2`(qconnect ,a1 clicked ,a2 call) button-syms slot-syms)
+       (values ,g!widget ,g!view ,var))))

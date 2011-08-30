@@ -32,3 +32,17 @@
   (let* ((m (make-instance 'assign-by-taetigkeit-model))
          (v (make-instance 'custom-tree-view :model m)))
     (show v)))
+
+(defun assign-by-taetigkeit ()
+  (multiple-value-bind (widget view model)
+      (model-action-view
+       (model (make-instance 'assign-by-taetigkeit-model))
+       ("Zuweisen" (lambda (item)
+                     (format t "~A~%" item)
+                                        ; todo
+                     ))
+       ("Zuruecknehmen" (lambda (item)
+                          (format t "~A~%" item)
+                                        ; todo
+                          )))
+    (q show widget)))
