@@ -9,11 +9,18 @@
 (in-package :avcl-forms)
 
 (defqclass form-base (q-widget)
-  ()
-  (:signals (new-data q-variant)))
+  ((data-queue :accessor data-queue
+               :initform (make-queue)))
+  (:signals new-data))
 
 (defmethod initialize-instance :after ((form-base form-base) &key)
   (qt:new form-base))
+
+(defmethod next-form-datum ((form-base form-base))
+  (dequeue (data-queue form-base)))
+
+(defmethod form-data ((form-base form-base))
+  (car (data-queue form-base)))
 
 (defgeneric field-values (form))
 
@@ -40,7 +47,9 @@
                                     (aif
                                      (funcall ,(second b)
                                               (field-values ,g!this))
-                                     (qemit ,g!this new-data it))))))
+                                     (progn
+                                       (enqueue it (data-queue ,g!this))
+                                       (qemit ,g!this new-data)))))))
                           button-syms buttons)))
 
       (defmethod initialize-instance
@@ -167,23 +176,3 @@
 
 (defmethod clear-field-value ((list-selector-input list-selector-input))
   (setf (q current-index list-selector-input) -1))
-
-
-;; ;; Beispiel für define-form Aufruf
-;; (DEFINE-FORM TAETIGKEIT-CREATE-FORM
-;;        "Taetigkeit anlegen"
-;;        NIL
-;;        ((TITEL STRING) (BEDARF INTEGER :DEFAULT 2) (DOZENT STRING)
-;;         (BEREICH (FROM "Grundstudium" "Aufbaustudium" "Masterstudium"))
-;;         (TERMIN STRING) (BEMERKUNG STRING))
-;;        (("Speichern && Weiter"
-;;          (LAMBDA (#:ALIST1048)
-;;            (APPLY #'MAKE-INSTANCE 'TAETIGKEIT #:ALIST1048)))
-;;         ("Speichern"
-;;          (LAMBDA (#:ALIST1048)
-;;            (PROG1 (APPLY #'MAKE-INSTANCE 'TAETIGKEIT #:ALIST1048)
-;;              (CLOSE-FORM))))
-;;         ("Abbrechen"
-;;          (LAMBDA (#:ALIST1048)
-;;            (DECLARE (IGNORABLE #:ALIST1048))
-;;            (CLOSE-FORM)))))

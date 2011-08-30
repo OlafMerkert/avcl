@@ -44,9 +44,11 @@
              ,slots                     ; Felder
              ;; Buttons
              (("Speichern && Weiter" (lambda (,g!alist)
-                                       #1=(make-instance ',name
-                                                         ,@(mapcan #`(,(keyw a1) (assoc1 ',a1 ,g!alist))
-                                                                   slot-names))))
+                                       (prog1
+                                           #1=(make-instance ',name
+                                                             ,@(mapcan #`(,(keyw a1) (assoc1 ',a1 ,g!alist))
+                                                                       slot-names))
+                                           (clear-form))))
               ("Speichern" (lambda (,g!alist)
                              (prog1
                                  #1#
